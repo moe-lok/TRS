@@ -148,20 +148,32 @@ def getProcActiveVer(procId):
 def compareParam(ppl):
     print("compare parameter...")
 
-    # compare TRS number $TRS
-    if (trsNumber != ppl[1][ppl[0].index('$TRS')]):
-        print("\ntrs number not same $TRS")
-        print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
+    try:
+        # compare TRS number $TRS
+        if (trsNumber != ppl[1][ppl[0].index('$TRS')]):
+            print("\ntrs number not same $TRS")
+            print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
+    except ValueError as e:
+        print("\n$TRS does not exist in Promis")
+        print(str(e))
 
-    # compare program id $TSCLS1P1
-    if (progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]):
-        print("\nprogram id not same $TSCLS1P1")
-        print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
+    try:
+        # compare program id $TSCLS1P1
+        if (progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]):
+            print("\nprogram id not same $TSCLS1P1")
+            print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
+    except ValueError as e:
+        print("\n$TSCLS1P1 program id does not exist in Promis")
+        print(str(e))
 
-    # compare project folder $TSCLS1N1
-    if (projFol != ppl[1][ppl[0].index('$TSCLS1N1')]):
-        print("\nproject folder not same $TSCLS1N1")
-        print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
+    try:
+        # compare project folder $TSCLS1N1
+        if (projFol != ppl[1][ppl[0].index('$TSCLS1N1')]):
+            print("\nproject folder not same $TSCLS1N1")
+            print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
+    except ValueError as e:
+        print("\n$TSCLS1N1 project folder does not exist in Promis")
+        print(str(e))
 
     # compare fixture
     """
@@ -175,20 +187,31 @@ def compareParam(ppl):
 
     for idx,fix in enumerate(fixts[0]):
 
-        val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
+        try:
+            val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
 
-        if (fixts[1][idx] != val):
-            print("\nfixture not same $TSCLS1H1E"+str(idx+1))
-            print("change "+ val + " to " + fixts[1][idx])
+            if (fixts[1][idx] != val):
+                print("\nfixture not same $TSCLS1H1E"+str(idx+1))
+                print("change "+ val + " to " + fixts[1][idx])
+
+        except ValueError as e:
+            print("\n$TSCLS1H1E"+str(idx+1)+" fixture does not exist in Promis")
+            print(str(e))
 
 
     # compare pidref $PIDREF 04-04-5430 REV A
     temp = notes[1].split(" ",1)[1].split()
     del temp[-1]
     pidref = " ".join(temp)
-    if (pidref != ppl[1][ppl[0].index('$PIDREF')]):
-        print("\nPIDREF not same $PIDREF")
-        print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
+
+    try:
+        if (pidref.upper() != ppl[1][ppl[0].index('$PIDREF')]):
+            print("\nPIDREF not same $PIDREF")
+            print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
+
+    except ValueError as e:
+        print("\n$PIDREF does not exist in Promis")
+        print(str(e))
 
     newNotes = notes.copy()
 
@@ -207,15 +230,25 @@ def compareParam(ppl):
         del temp1[-1]
         note = " ".join(temp1)
 
-        if (note != ppl[1][ppl[0].index('$MCREF'+str(idx+1))]):
-            print("\nnote not same $MCREF"+str(idx+1))
-            print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
+        try:
+            if (note.upper() != ppl[1][ppl[0].index('$MCREF'+str(idx+1))]):
+                print("\nnote not same $MCREF"+str(idx+1))
+                print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
+
+        except ValueError as e:
+            print("\n$MCREF"+str(idx+1)+" does not exist in Promis")
+            print(str(e))
 
 
-    # compare owner
-    if ("P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]):
-        print("\nowner not P2LOKMAN $OWNER")
-        print("change "+ ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
+    try:
+        # compare owner
+        if ("P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]):
+            print("\nowner not P2LOKMAN $OWNER")
+            print("change "+ ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
+
+    except ValueError as e:
+        print("\n$OWNER does not exist in Promis")
+        print(str(e))
 
 
 def main():
@@ -244,7 +277,6 @@ def main():
         print("\n############# "+ procId+"-T0")
         promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
         compareParam(promisParamList)
-        input("continue? press any key...")
 
 
 if __name__ == "__main__":
