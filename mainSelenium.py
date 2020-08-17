@@ -178,7 +178,7 @@ def compareParam(ppl):
         val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
 
         if (fixts[1][idx] != val):
-            print("\nfixture not same $TSCLS1N"+str(idx+1))
+            print("\nfixture not same $TSCLS1H1E"+str(idx+1))
             print("change "+ val + " to " + fixts[1][idx])
 
 
@@ -190,8 +190,10 @@ def compareParam(ppl):
         print("\nPIDREF not same $PIDREF")
         print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
 
-    del notes[0]
-    del notes[0]
+    newNotes = notes.copy()
+
+    del newNotes[0]
+    del newNotes[0]
 
     # compare notes
     """
@@ -200,7 +202,7 @@ def compareParam(ppl):
     $MCREF3 04-10-26422 REV B
     """
 
-    for idx,rawnote in enumerate(notes):
+    for idx,rawnote in enumerate(newNotes):
         temp1 = rawnote.split(" ",1)[1].split()
         del temp1[-1]
         note = " ".join(temp1)
@@ -242,6 +244,7 @@ def main():
         print("\n############# "+ procId+"-T0")
         promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
         compareParam(promisParamList)
+        input("continue? press any key...")
 
 
 if __name__ == "__main__":
