@@ -17,7 +17,7 @@ URL2 = "http://wwmfg.analog.com/wwmfg/apps/TRS/DrawForm.cfm"
 URL3 = "http://wwmfg.analog.com/userfiles/wwmfg/apps/TRS/"
 
 trsNumber = 'TRS024374C'
-procId = []
+procIds = []
 progId = ''
 projFol = ''
 fixts = [[],[]]
@@ -27,7 +27,7 @@ cx_Oracle.init_oracle_client(lib_dir=r"C:\instantclient-basiclite-windows.x64-19
 
 
 def extractXML(docNumber):
-    global procId
+    global procIds
     global progId
     global projFol
     global fixts
@@ -63,7 +63,7 @@ def extractXML(docNumber):
 
     print("click trsnumber...")
     trsLink = driver.find_element_by_xpath("/html/body/div[2]/form/table/tbody/tr/td/table/tbody/tr[4]/td[1]/a")
-    # TODO; get trs number with revision
+    # get trs number with revision
     trsNumber = trsLink.text
     trsLink.click()
 
@@ -78,7 +78,7 @@ def extractXML(docNumber):
     root = tree.getroot()
 
     for child in root.findall('./body/general/products/product'):
-        procId.append(child.find('finishedgoodspartnumber').text)
+        procIds.append(child.find('finishedgoodspartnumber').text)
 
     str1 = root.find('./body/testrequirements/verifytestsetup/specialinstructions').text.split()
     progId = str1[0]
@@ -101,7 +101,6 @@ def queryPromisParam(procId):
     httpobj = httplib2.Http()
     header = {"Content-Type": "text/plain;charset=UTF-8"}
     params = r"\USERID p2lokman\PWD analog1234\PRCDID " + procId + r"\FROM PPAR.PARAMETERS\SHOW PARMNAME\SHOW PARMVAL\END\\"
-    #params = r"\USERID p2lokman\PWD analog1234\PRCDID " + procId + r"\FROM PPAR.PARAMETERS\SHOW PARMNAME\SHOW PARMVAL\END\\"
     uri = "http://" + HTTPURL + TP_Function
     content = httpobj.request(uri, "POST", headers=header, body=params)
     lotinfo = content[1].decode("utf-8")
@@ -148,19 +147,23 @@ def getProcActiveVer(procId):
 
 def compareParam(ppl):
     print("compare parameter...")
-    print(ppl)
 
-    """for idx,s in enumerate(ppl[0]):
-        print(s,ppl[1][idx])"""
-
-    # TODO: compare TRS number $TRS
+    # compare TRS number $TRS
     if (trsNumber != ppl[1][ppl[0].index('$TRS')]):
-        print("trs number not same")
+        print("\ntrs number not same $TRS")
         print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
 
-    # TODO: compare program id $TSCLS1P1
-    # TODO: compare project folder $TSCLS1N1
-    # TODO: compare fixture
+    # compare program id $TSCLS1P1
+    if (progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]):
+        print("\nprogram id not same $TSCLS1P1")
+        print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
+
+    # compare project folder $TSCLS1N1
+    if (projFol != ppl[1][ppl[0].index('$TSCLS1N1')]):
+        print("\nproject folder not same $TSCLS1N1")
+        print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
+
+    # compare fixture
     """
     $TSCLS1H1E1 PERFBRD: L-65180
     $TSCLS1H1E2 CNTCR: PGC-0020
@@ -169,24 +172,59 @@ def compareParam(ppl):
     $TSCLS1H1E5 HNDLRITF: LTC-00282
     $TSCLS1H1E6 CONVKIT: PGK-0052
     """
-    # TODO: compare notes
+
+    for idx,fix in enumerate(fixts[0]):
+
+        val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
+
+        if (fixts[1][idx] != val):
+            print("\nfixture not same $TSCLS1N"+str(idx+1))
+            print("change "+ val + " to " + fixts[1][idx])
+
+
+    # compare pidref $PIDREF 04-04-5430 REV A
+    temp = notes[1].split(" ",1)[1].split()
+    del temp[-1]
+    pidref = " ".join(temp)
+    if (pidref != ppl[1][ppl[0].index('$PIDREF')]):
+        print("\nPIDREF not same $PIDREF")
+        print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
+
+    del notes[0]
+    del notes[0]
+
+    # compare notes
     """
     $MCREF1 04-10-26420 REV 0
     $MCREF2 04-10-26421 REV B
     $MCREF3 04-10-26422 REV B
     """
-    # TODO: compare pidref $PIDREF 04-04-5430 REV A
-    # TODO: compare owner
+
+    for idx,rawnote in enumerate(notes):
+        temp1 = rawnote.split(" ",1)[1].split()
+        del temp1[-1]
+        note = " ".join(temp1)
+
+        if (note != ppl[1][ppl[0].index('$MCREF'+str(idx+1))]):
+            print("\nnote not same $MCREF"+str(idx+1))
+            print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
+
+
+    # compare owner
+    if ("P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]):
+        print("\nowner not P2LOKMAN $OWNER")
+        print("change "+ ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
 
 
 def main():
-    #inp = input("pls enter spec number: ")
-    #docNumber = str(inp[3:])
+    inp = input("pls enter spec number: ")
+    docNumber = str(inp[3:])
 
-    """extractXML(docNumber)
+
+    extractXML(docNumber)
     print("trs number: "+ trsNumber)
     print("procedure Id: ")
-    print(procId)
+    print(procIds)
     print("progId: "+ progId)
     print("projFol: "+ projFol)
     print("fixtures: ")
@@ -197,10 +235,13 @@ def main():
     print("notes: ")
 
     for note in notes:
-        print(note)"""
+        print(note)
 
-    promisParamList = queryPromisParam(getProcActiveVer("LTM2884IY#PBF-T0"))
-    compareParam(promisParamList)
+
+    for procId in procIds:
+        print("\n############# "+ procId+"-T0")
+        promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
+        compareParam(promisParamList)
 
 
 if __name__ == "__main__":
