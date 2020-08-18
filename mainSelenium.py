@@ -16,14 +16,14 @@ URL1 = "http://wwmfg.analog.com/wwmfg/apps/TRS/SpecIndex.cfm"
 URL2 = "http://wwmfg.analog.com/wwmfg/apps/TRS/DrawForm.cfm"
 URL3 = "http://wwmfg.analog.com/userfiles/wwmfg/apps/TRS/"
 
-trsNumber = 'TRS024374C'
+trsNumber = ''
 procIds = []
 progId = ''
 projFol = ''
 fixts = [[],[]]
 notes = []
 
-cx_Oracle.init_oracle_client(lib_dir=r"C:\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
+cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
 
 
 def extractXML(docNumber):
@@ -38,7 +38,7 @@ def extractXML(docNumber):
 
     options = Options()
     options.headless = True
-    driver = webdriver.Chrome("C:/chromedriver_win32/chromedriver.exe", options=options)
+    driver = webdriver.Chrome("/chromedriver_win32/chromedriver.exe", options=options)
     driver.get(URL1)
     print("logging in...")
     usernameInp = driver.find_element_by_name("username")
@@ -281,3 +281,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    input("\npress any key to close...")
