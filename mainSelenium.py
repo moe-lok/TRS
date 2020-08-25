@@ -22,17 +22,12 @@ progId = ''
 projFol = ''
 fixts = [[],[]]
 notes = []
+driver = None
 
 #cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
 
-
-def extractXML(docNumber):
-    global procIds
-    global progId
-    global projFol
-    global fixts
-    global notes
-    global trsNumber
+def loginTrs():
+    global driver
 
     print("Launch Chromedriver...")
 
@@ -49,6 +44,21 @@ def extractXML(docNumber):
     passInp.clear()
     passInp.send_keys("413C@Batuuban")
     passInp.send_keys(Keys.RETURN)
+
+def extractXML(docNumber):
+    global procIds
+    global progId
+    global projFol
+    global fixts
+    global notes
+    global trsNumber
+
+    trsNumber = ''
+    procIds = []
+    progId = ''
+    projFol = ''
+    fixts = [[],[]]
+    notes = []
 
     print("enter trsnumber...")
     select = Select(driver.find_element_by_name('FieldName'))
@@ -91,6 +101,9 @@ def extractXML(docNumber):
 
     str2 = root.find('./body/testflows/configurations/configuration/notes').text
     notes = str2.splitlines()
+
+    driver.execute_script("window.history.go(-1)")
+    driver.execute_script("window.history.go(-1)")
 
 def queryPromisParam(procId):
     print("query Promis... "+procId)
@@ -154,7 +167,7 @@ def compareParam(ppl):
             print("\ntrs number not same $TRS")
             print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
     except ValueError as e:
-        print("\n$TRS does not exist in Promis")
+        print("\n$TRS does not exist in Promis :"+ trsNumber)
         print(str(e))
 
     try:
@@ -163,7 +176,7 @@ def compareParam(ppl):
             print("\nprogram id not same $TSCLS1P1")
             print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
     except ValueError as e:
-        print("\n$TSCLS1P1 program id does not exist in Promis")
+        print("\n$TSCLS1P1 program id does not exist in Promis :"+ progId.upper())
         print(str(e))
 
     try:
@@ -172,7 +185,7 @@ def compareParam(ppl):
             print("\nproject folder not same $TSCLS1N1")
             print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
     except ValueError as e:
-        print("\n$TSCLS1N1 project folder does not exist in Promis")
+        print("\n$TSCLS1N1 project folder does not exist in Promis :"+ projFol)
         print(str(e))
 
     # compare fixture
@@ -195,7 +208,7 @@ def compareParam(ppl):
                 print("change "+ val + " to " + fixts[1][idx])
 
         except ValueError as e:
-            print("\n$TSCLS1H1E"+str(idx+1)+" fixture does not exist in Promis")
+            print("\n$TSCLS1H1E"+str(idx+1)+" fixture does not exist in Promis :"+ fixts[1][idx])
             print(str(e))
 
 
@@ -210,7 +223,7 @@ def compareParam(ppl):
             print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
 
     except ValueError as e:
-        print("\n$PIDREF does not exist in Promis")
+        print("\n$PIDREF does not exist in Promis :"+ pidref)
         print(str(e))
 
     newNotes = notes.copy()
@@ -236,7 +249,7 @@ def compareParam(ppl):
                 print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
 
         except ValueError as e:
-            print("\n$MCREF"+str(idx+1)+" does not exist in Promis")
+            print("\n$MCREF"+str(idx+1)+" does not exist in Promis :"+ note)
             print(str(e))
 
 
@@ -252,33 +265,40 @@ def compareParam(ppl):
 
 
 def main():
-    inp = input("pls enter spec number: ")
-    docNumber = str(inp[3:])
+
+    loginTrs()
+
+    cont = True
+
+    while cont:
+
+        inp = input("pls enter spec number: ")
+        docNumber = str(inp[3:])
+
+        extractXML(docNumber)
+        print("trs number: "+ trsNumber)
+        print("procedure Id: ")
+        print(procIds)
+        print("progId: "+ progId)
+        print("projFol: "+ projFol)
+        print("fixtures: ")
+
+        for idx,fix in enumerate(fixts[0]):
+            print(fixts[0][idx]+" | "+fixts[1][idx])
+
+        print("notes: ")
+
+        for note in notes:
+            print(note)
 
 
-    extractXML(docNumber)
-    print("trs number: "+ trsNumber)
-    print("procedure Id: ")
-    print(procIds)
-    print("progId: "+ progId)
-    print("projFol: "+ projFol)
-    print("fixtures: ")
+        for procId in procIds:
+            print("\n############# "+ procId+"-T0")
+            promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
+            compareParam(promisParamList)
 
-    for idx,fix in enumerate(fixts[0]):
-        print(fixts[0][idx]+" | "+fixts[1][idx])
-
-    print("notes: ")
-
-    for note in notes:
-        print(note)
-
-
-    for procId in procIds:
-        print("\n############# "+ procId+"-T0")
-        promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
-        compareParam(promisParamList)
+        cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
 
 
 if __name__ == "__main__":
     main()
-    input("\npress any key to close...")
