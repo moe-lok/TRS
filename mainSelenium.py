@@ -23,7 +23,7 @@ projFol = ''
 fixts = [[],[]]
 notes = []
 
-cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
+#cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
 
 
 def extractXML(docNumber):
@@ -38,7 +38,7 @@ def extractXML(docNumber):
 
     options = Options()
     options.headless = True
-    driver = webdriver.Chrome("/chromedriver_win32/chromedriver.exe", options=options)
+    driver = webdriver.Chrome(options=options)
     driver.get(URL1)
     print("logging in...")
     usernameInp = driver.find_element_by_name("username")
