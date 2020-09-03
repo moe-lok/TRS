@@ -11,6 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+from pywinauto.application import Application
 
 URL1 = "http://wwmfg.analog.com/wwmfg/apps/TRS/SpecIndex.cfm"
 URL2 = "http://wwmfg.analog.com/wwmfg/apps/TRS/DrawForm.cfm"
@@ -23,6 +24,8 @@ projFol = ''
 fixts = [[],[]]
 notes = []
 driver = None
+changes = []
+procID = None
 
 #cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
 
@@ -90,9 +93,9 @@ def extractXML(docNumber):
     for child in root.findall('./body/general/products/product'):
         procIds.append(child.find('finishedgoodspartnumber').text)
 
-    str1 = root.find('./body/testrequirements/verifytestsetup/specialinstructions').text.split()
-    progId = str1[0]
-    projFol = str1[4]
+    str1 = root.find('./body/testrequirements/verifytestsetup/specialinstructions').text.split("|")
+    progId = str1[0].strip()
+    projFol = str1[1].split(":")[1].strip()
 
 
     for child in root.findall('./body/testflows/configurations/configuration/fixtures/'):
@@ -107,6 +110,9 @@ def extractXML(docNumber):
 
 def queryPromisParam(procId):
     print("query Promis... "+procId)
+
+    global procID
+    procID = procId
 
     HTTPURL = "ADP2PROM1.AD.ANALOG.COM:10736"
     TP_Function = "/PROQUERY_PPARINFO"
@@ -161,11 +167,15 @@ def getProcActiveVer(procId):
 def compareParam(ppl):
     print("compare parameter...")
 
+    global changes
+    changes = []
+
     try:
         # compare TRS number $TRS
         if (trsNumber != ppl[1][ppl[0].index('$TRS')]):
             print("\ntrs number not same $TRS")
             print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
+            changes.append(['$TRS',trsNumber])
     except ValueError as e:
         print("\n$TRS does not exist in Promis :"+ trsNumber)
         print(str(e))
@@ -175,6 +185,7 @@ def compareParam(ppl):
         if (progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]):
             print("\nprogram id not same $TSCLS1P1")
             print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
+            changes.append(['$TSCLS1P1',progId.upper()])
     except ValueError as e:
         print("\n$TSCLS1P1 program id does not exist in Promis :"+ progId.upper())
         print(str(e))
@@ -184,6 +195,7 @@ def compareParam(ppl):
         if (projFol != ppl[1][ppl[0].index('$TSCLS1N1')]):
             print("\nproject folder not same $TSCLS1N1")
             print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
+            changes.append(['$TSCLS1N1',projFol])
     except ValueError as e:
         print("\n$TSCLS1N1 project folder does not exist in Promis :"+ projFol)
         print(str(e))
@@ -203,9 +215,10 @@ def compareParam(ppl):
         try:
             val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
 
-            if (fixts[1][idx] != val):
+            if (fixts[1][idx].strip() != val):
                 print("\nfixture not same $TSCLS1H1E"+str(idx+1))
                 print("change "+ val + " to " + fixts[1][idx])
+                changes.append(["$TSCLS1H1E"+str(idx+1),fixts[1][idx]])
 
         except ValueError as e:
             print("\n$TSCLS1H1E"+str(idx+1)+" fixture does not exist in Promis :"+ fixts[1][idx])
@@ -258,10 +271,93 @@ def compareParam(ppl):
         if ("P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]):
             print("\nowner not P2LOKMAN $OWNER")
             print("change "+ ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
+            changes.append(['$OWNER','P2LOKMAN'])
 
     except ValueError as e:
         print("\n$OWNER does not exist in Promis")
         print(str(e))
+
+
+def updatePromisParam(procId):
+    print("update promis param...")
+    print(procId)
+    p2title = "adp2prom1.ad.analog.com - PuTTY"
+
+    app = Application(backend="uia").connect(title=p2title)
+    dialog = app.window()
+
+    temp = procID.split(".")
+
+    procIDver = temp[0]+"."+str(int(temp[1])+1).zfill(2)
+
+    if changes:
+        print(changes)
+        dialog.type_keys("^z")  # Ctrl+z
+        dialog.type_keys("q ma proc create{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        dialog.type_keys(procId+"{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys(procId+"{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("param{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("m{ENTER}")
+
+        for change in changes:
+            dialog.type_keys(change[0]+"{ENTER}")
+            time.sleep(0.5)
+            dialog.type_keys("{ENTER}")
+            time.sleep(0.5)
+            dialog.type_keys(change[1]+"{ENTER}")
+            time.sleep(0.5)
+
+        dialog.type_keys("END{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+
+        # TODO: procedure id version
+        dialog.type_keys(procIDver+"{ENTER}")
+        time.sleep(0.5)
+        # TODO: trsnumber
+        dialog.type_keys(trsNumber+"{ENTER}")
+        time.sleep(0.5)
+        # TODO: end
+        dialog.type_keys("END{ENTER}")
+        time.sleep(0.5)
+        # TODO: set nopage
+        dialog.type_keys("set nopage{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        # TODO: q ma proc free
+        dialog.type_keys("q ma proc free{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        # TODO: procedure id version
+        dialog.type_keys(procIDver+"{ENTER}")
+        time.sleep(0.5)
+        # TODO: y
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        # TODO: y
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        # TODO: make
+        dialog.type_keys("make{ENTER}")
+        time.sleep(0.5)
+        # TODO: procedure id version
+        dialog.type_keys(procIDver+"{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("set page{ENTER}", with_spaces=True)
+
+    else:
+        print("there are no changes to make...")
 
 
 def main():
@@ -296,6 +392,10 @@ def main():
             print("\n############# "+ procId+"-T0")
             promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
             compareParam(promisParamList)
+
+            # TODO: update promis parameter
+            if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
+                updatePromisParam(procId+"-T0")
 
         cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
 
