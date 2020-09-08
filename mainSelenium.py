@@ -234,6 +234,7 @@ def compareParam(ppl):
         if (pidref.upper() != ppl[1][ppl[0].index('$PIDREF')]):
             print("\nPIDREF not same $PIDREF")
             print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
+            changes.append(["$PIDREF",pidref])
 
     except ValueError as e:
         print("\n$PIDREF does not exist in Promis :"+ pidref)
@@ -260,6 +261,7 @@ def compareParam(ppl):
             if (note.upper() != ppl[1][ppl[0].index('$MCREF'+str(idx+1))]):
                 print("\nnote not same $MCREF"+str(idx+1))
                 print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
+                changes.append([ppl[1][ppl[0].index('$MCREF'+str(idx+1))],note])
 
         except ValueError as e:
             print("\n$MCREF"+str(idx+1)+" does not exist in Promis :"+ note)
