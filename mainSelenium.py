@@ -1,7 +1,4 @@
 from bs4 import BeautifulSoup
-import requests
-import urllib.request
-import re
 import xml.etree.ElementTree as ET
 import httplib2
 import cx_Oracle
@@ -21,13 +18,14 @@ trsNumber = ''
 procIds = []
 progId = ''
 projFol = ''
-fixts = [[],[]]
+fixts = [[], []]
 notes = []
 driver = None
 changes = []
 procID = None
 
-#cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
+
+# cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
 
 def loginTrs():
     global driver
@@ -48,6 +46,7 @@ def loginTrs():
     passInp.send_keys("413C@Batuuban")
     passInp.send_keys(Keys.RETURN)
 
+
 def extractXML(docNumber):
     global procIds
     global progId
@@ -60,7 +59,7 @@ def extractXML(docNumber):
     procIds = []
     progId = ''
     projFol = ''
-    fixts = [[],[]]
+    fixts = [[], []]
     notes = []
 
     print("enter trsnumber...")
@@ -97,7 +96,6 @@ def extractXML(docNumber):
     progId = str1[0].strip()
     projFol = str1[1].split(":")[1].strip()
 
-
     for child in root.findall('./body/testflows/configurations/configuration/fixtures/'):
         fixts[0].append(child.find('hardware').text)
         fixts[1].append(child.find('spec').text)
@@ -108,8 +106,9 @@ def extractXML(docNumber):
     driver.execute_script("window.history.go(-1)")
     driver.execute_script("window.history.go(-1)")
 
+
 def queryPromisParam(procId):
-    print("query Promis... "+procId)
+    print("query Promis... " + procId)
 
     global procID
     procID = procId
@@ -133,6 +132,7 @@ def queryPromisParam(procId):
 
     return splitList
 
+
 def getProcActiveVer(procId):
     print("getting procedure active version on database...")
 
@@ -153,15 +153,21 @@ def getProcActiveVer(procId):
         FROM
             plldba.prcd
         WHERE
-            plldba.prcd.prcdname = '"""+procId+"""'
+            plldba.prcd.prcdname = '""" + procId + """'
             and
-            plldba.prcd.activekey like 'ALTM%'""") # use triple quotes if you want to spread your query across multiple lines
+            plldba.prcd.activekey like 'ALTM%'""")  # use triple quotes if you want to spread your query across multiple lines
 
     tmpLst = list(c)
-    procIDver = tmpLst[0][0]+tmpLst[0][1]
 
-    return procIDver
-    conn.close()
+    try:
+        procIDver = tmpLst[0][0] + tmpLst[0][1]
+        conn.close()
+        return procIDver
+
+    except IndexError:
+        print("partname does not exist...")
+        conn.close()
+        return None
 
 
 def compareParam(ppl):
@@ -172,32 +178,32 @@ def compareParam(ppl):
 
     try:
         # compare TRS number $TRS
-        if (trsNumber != ppl[1][ppl[0].index('$TRS')]):
+        if trsNumber != ppl[1][ppl[0].index('$TRS')]:
             print("\ntrs number not same $TRS")
-            print("change "+ ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
-            changes.append(['$TRS',trsNumber])
+            print("change " + ppl[1][ppl[0].index('$TRS')] + " to " + trsNumber)
+            changes.append(['$TRS', trsNumber])
     except ValueError as e:
-        print("\n$TRS does not exist in Promis :"+ trsNumber)
+        print("\n$TRS does not exist in Promis :" + trsNumber)
         print(str(e))
 
     try:
         # compare program id $TSCLS1P1
-        if (progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]):
+        if progId.upper() != ppl[1][ppl[0].index('$TSCLS1P1')]:
             print("\nprogram id not same $TSCLS1P1")
-            print("change "+ ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
-            changes.append(['$TSCLS1P1',progId.upper()])
+            print("change " + ppl[1][ppl[0].index('$TSCLS1P1')] + " to " + progId.upper())
+            changes.append(['$TSCLS1P1', progId.upper()])
     except ValueError as e:
-        print("\n$TSCLS1P1 program id does not exist in Promis :"+ progId.upper())
+        print("\n$TSCLS1P1 program id does not exist in Promis :" + progId.upper())
         print(str(e))
 
     try:
         # compare project folder $TSCLS1N1
-        if (projFol != ppl[1][ppl[0].index('$TSCLS1N1')]):
+        if projFol != ppl[1][ppl[0].index('$TSCLS1N1')]:
             print("\nproject folder not same $TSCLS1N1")
-            print("change "+ ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
-            changes.append(['$TSCLS1N1',projFol])
+            print("change " + ppl[1][ppl[0].index('$TSCLS1N1')] + " to " + projFol)
+            changes.append(['$TSCLS1N1', projFol])
     except ValueError as e:
-        print("\n$TSCLS1N1 project folder does not exist in Promis :"+ projFol)
+        print("\n$TSCLS1N1 project folder does not exist in Promis :" + projFol)
         print(str(e))
 
     # compare fixture
@@ -210,34 +216,38 @@ def compareParam(ppl):
     $TSCLS1H1E6 CONVKIT: PGK-0052
     """
 
-    for idx,fix in enumerate(fixts[0]):
+    for idx, fix in enumerate(fixts[0]):
 
         try:
-            val = ppl[1][ppl[0].index('$TSCLS1H1E'+str(idx+1))].split()[1]
+            fullVal = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))]
+            val = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[1].strip()
+            paramKey = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split()[0]
 
-            if (fixts[1][idx].strip() != val):
-                print("\nfixture not same $TSCLS1H1E"+str(idx+1))
-                print("change "+ val + " to " + fixts[1][idx])
-                changes.append(["$TSCLS1H1E"+str(idx+1),fixts[1][idx]])
+            if fixts[1][idx].strip() != val:
+                print("\nfixture not same $TSCLS1H1E" + str(idx + 1))
+                print("change " + fullVal + " to " + paramKey + " " + fixts[1][idx])
+                changes.append(["$TSCLS1H1E" + str(idx + 1), paramKey + " " + fixts[1][idx]])
 
         except ValueError as e:
-            print("\n$TSCLS1H1E"+str(idx+1)+" fixture does not exist in Promis :"+ fixts[1][idx])
+            print("\n$TSCLS1H1E" + str(idx + 1) + " fixture does not exist in Promis :" + fixts[1][idx])
             print(str(e))
-
+        except IndexError:
+            print("\nfixture not properly formatted $TSCLS1H1E" + str(idx + 1))
+            print(fullVal + " format is not proper, code can't process")
 
     # compare pidref $PIDREF 04-04-5430 REV A
-    temp = notes[1].split(" ",1)[1].split()
+    temp = notes[1].split(" ", 1)[1].split()
     del temp[-1]
     pidref = " ".join(temp)
 
     try:
-        if (pidref.upper() != ppl[1][ppl[0].index('$PIDREF')]):
+        if pidref.upper() != ppl[1][ppl[0].index('$PIDREF')]:
             print("\nPIDREF not same $PIDREF")
-            print("change "+ ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
-            changes.append(["$PIDREF",pidref])
+            print("change " + ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
+            changes.append(["$PIDREF", pidref])
 
     except ValueError as e:
-        print("\n$PIDREF does not exist in Promis :"+ pidref)
+        print("\n$PIDREF does not exist in Promis :" + pidref)
         print(str(e))
 
     newNotes = notes.copy()
@@ -252,28 +262,27 @@ def compareParam(ppl):
     $MCREF3 04-10-26422 REV B
     """
 
-    for idx,rawnote in enumerate(newNotes):
-        temp1 = rawnote.split(" ",1)[1].split()
+    for idx, rawnote in enumerate(newNotes):
+        temp1 = rawnote.split(" ", 1)[1].split()
         del temp1[-1]
         note = " ".join(temp1)
 
         try:
-            if (note.upper() != ppl[1][ppl[0].index('$MCREF'+str(idx+1))]):
-                print("\nnote not same $MCREF"+str(idx+1))
-                print("change "+ ppl[1][ppl[0].index('$MCREF'+str(idx+1))] + " to " + note)
-                changes.append([ppl[1][ppl[0].index('$MCREF'+str(idx+1))],note])
+            if note.upper() != ppl[1][ppl[0].index('$MCREF' + str(idx + 1))]:
+                print("\nnote not same $MCREF" + str(idx + 1))
+                print("change " + ppl[1][ppl[0].index('$MCREF' + str(idx + 1))] + " to " + note)
+                changes.append(['$MCREF' + str(idx + 1), note])
 
         except ValueError as e:
-            print("\n$MCREF"+str(idx+1)+" does not exist in Promis :"+ note)
+            print("\n$MCREF" + str(idx + 1) + " does not exist in Promis :" + note)
             print(str(e))
-
 
     try:
         # compare owner
-        if ("P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]):
+        if "P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]:
             print("\nowner not P2LOKMAN $OWNER")
-            print("change "+ ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
-            changes.append(['$OWNER','P2LOKMAN'])
+            print("change " + ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
+            changes.append(['$OWNER', 'P2LOKMAN'])
 
     except ValueError as e:
         print("\n$OWNER does not exist in Promis")
@@ -284,26 +293,27 @@ def updatePromisParam(procId):
     print("update promis param...")
     print(procId)
     p2title = "adp2prom1.ad.analog.com - PuTTY"
+    # ADP2PROM1.AD.ANALOG.COM
 
     app = Application(backend="uia").connect(title=p2title)
     dialog = app.window()
 
     temp = procID.split(".")
 
-    procIDver = temp[0]+"."+str(int(temp[1])+1).zfill(2)
+    procIDver = temp[0] + "." + str(int(temp[1]) + 1).zfill(2)
 
     if changes:
         print(changes)
         dialog.type_keys("^z")  # Ctrl+z
         dialog.type_keys("q ma proc create{ENTER}", with_spaces=True)
         time.sleep(0.5)
-        dialog.type_keys(procId+"{ENTER}")
+        dialog.type_keys(procId + "{ENTER}")
         time.sleep(0.5)
         dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
         dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
-        dialog.type_keys(procId+"{ENTER}")
+        dialog.type_keys(procId + "{ENTER}")
         time.sleep(0.5)
         dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
@@ -312,11 +322,11 @@ def updatePromisParam(procId):
         dialog.type_keys("m{ENTER}")
 
         for change in changes:
-            dialog.type_keys(change[0]+"{ENTER}")
+            dialog.type_keys(change[0] + "{ENTER}")
             time.sleep(0.5)
             dialog.type_keys("{ENTER}")
             time.sleep(0.5)
-            dialog.type_keys(change[1]+"{ENTER}")
+            dialog.type_keys(change[1] + "{ENTER}", with_spaces=True)
             time.sleep(0.5)
 
         dialog.type_keys("END{ENTER}")
@@ -326,35 +336,35 @@ def updatePromisParam(procId):
         dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
         time.sleep(0.5)
 
-        # TODO: procedure id version
-        dialog.type_keys(procIDver+"{ENTER}")
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
         time.sleep(0.5)
-        # TODO: trsnumber
-        dialog.type_keys(trsNumber+"{ENTER}")
+        # trsnumber
+        dialog.type_keys(trsNumber + "{ENTER}")
         time.sleep(0.5)
-        # TODO: end
+        # end
         dialog.type_keys("END{ENTER}")
         time.sleep(0.5)
-        # TODO: set nopage
+        # set nopage
         dialog.type_keys("set nopage{ENTER}", with_spaces=True)
         time.sleep(0.5)
-        # TODO: q ma proc free
+        # q ma proc free
         dialog.type_keys("q ma proc free{ENTER}", with_spaces=True)
         time.sleep(0.5)
-        # TODO: procedure id version
-        dialog.type_keys(procIDver+"{ENTER}")
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
         time.sleep(0.5)
-        # TODO: y
+        # y
         dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
-        # TODO: y
+        # y
         dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
-        # TODO: make
+        # make
         dialog.type_keys("make{ENTER}")
         time.sleep(0.5)
-        # TODO: procedure id version
-        dialog.type_keys(procIDver+"{ENTER}")
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
         time.sleep(0.5)
         dialog.type_keys("set page{ENTER}", with_spaces=True)
 
@@ -363,7 +373,6 @@ def updatePromisParam(procId):
 
 
 def main():
-
     loginTrs()
 
     cont = True
@@ -374,30 +383,37 @@ def main():
         docNumber = str(inp[3:])
 
         extractXML(docNumber)
-        print("trs number: "+ trsNumber)
+        print("trs number: " + trsNumber)
         print("procedure Id: ")
         print(procIds)
-        print("progId: "+ progId)
-        print("projFol: "+ projFol)
+        print("progId: " + progId)
+        print("projFol: " + projFol)
         print("fixtures: ")
 
-        for idx,fix in enumerate(fixts[0]):
-            print(fixts[0][idx]+" | "+fixts[1][idx])
+        for idx, fix in enumerate(fixts[0]):
+            print(fixts[0][idx] + " | " + fixts[1][idx])
 
         print("notes: ")
 
         for note in notes:
             print(note)
 
-
         for procId in procIds:
-            print("\n############# "+ procId+"-T0")
-            promisParamList = queryPromisParam(getProcActiveVer(procId+"-T0"))
-            compareParam(promisParamList)
+            print("\n############# " + procId + "-T0")
 
-            # TODO: update promis parameter
-            if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
-                updatePromisParam(procId+"-T0")
+            procActVer = getProcActiveVer(procId + "-T0")
+
+            if procActVer:
+
+                promisParamList = queryPromisParam(procActVer)
+                compareParam(promisParamList)
+
+                # update promis parameter
+                if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
+                    updatePromisParam(procId + "-T0")
+
+            else:
+                print("fail to get procedure active version...")
 
         cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
 
