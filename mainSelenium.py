@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from pywinauto.application import Application
+from webdriver_manager.chrome import ChromeDriverManager
 
 URL1 = "http://wwmfg.analog.com/wwmfg/apps/TRS/SpecIndex.cfm"
 URL2 = "http://wwmfg.analog.com/wwmfg/apps/TRS/DrawForm.cfm"
@@ -34,7 +35,7 @@ def loginTrs():
 
     options = Options()
     options.headless = True
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver.get(URL1)
     print("logging in...")
     usernameInp = driver.find_element_by_name("username")
