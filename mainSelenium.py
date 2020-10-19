@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 import httplib2
 import cx_Oracle
 import time
+import pyodbc
+import difflib
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
@@ -24,6 +26,7 @@ notes = []
 driver = None
 changes = []
 procID = None
+comment_notes = ''
 
 
 # cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
@@ -55,6 +58,7 @@ def extractXML(docNumber):
     global fixts
     global notes
     global trsNumber
+    global comment_notes
 
     trsNumber = ''
     procIds = []
@@ -62,6 +66,7 @@ def extractXML(docNumber):
     projFol = ''
     fixts = [[], []]
     notes = []
+    comment_notes = ''
 
     print("enter trsnumber...")
     select = Select(driver.find_element_by_name('FieldName'))
@@ -103,6 +108,8 @@ def extractXML(docNumber):
 
     str2 = root.find('./body/testflows/configurations/configuration/notes').text
     notes = str2.splitlines()
+
+    comment_notes = root.find('./body/notesandattachments/notes').text
 
     driver.execute_script("window.history.go(-1)")
     driver.execute_script("window.history.go(-1)")
@@ -373,6 +380,76 @@ def updatePromisParam(procId):
         print("there are no changes to make...")
 
 
+def compare_comment_notes(procId):
+    print("\ncomparing comment notes from database...")
+
+    product_core = procId.split("#")[0]
+
+    sqlconn = pyodbc.connect('Driver={SQL Server};'
+                             'Server=adpgsql1\\adpgsql;'
+                             'Database=MIPS;'
+                             'UID=webUser;'
+                             'PWD=Adipg!234567890;')
+
+    sql_query = f"SELECT " \
+                f"[ProductCore]," \
+                f"[CommentsNotes]" \
+                f"FROM [MIPS].[dbo].[PIDComments]" \
+                f"WHERE ProductCore = '{product_core}'" \
+                f"AND PartType = 'T'"
+
+    cursor = sqlconn.cursor()
+    cursor.execute(sql_query)
+
+    row = cursor.fetchone()
+
+    if row:
+
+        cmnt_notes = comment_notes.replace('<br>','\n')
+
+        com_note1 = row.CommentsNotes.splitlines()
+        com_note2 = cmnt_notes.splitlines()
+
+        d = difflib.Differ()
+
+        both_are_same = True
+
+        for idx, line in enumerate(com_note1):
+            if line != com_note2[idx]:
+                both_are_same = False
+                diff = d.compare(com_note1, com_note2)
+                print('\n'.join(diff))
+                break
+
+        if not both_are_same:
+            print("\nComment notes are not the same...")
+
+            if True if input("\nAuto update comment? [Y/N]...")[0].upper() == "Y" else False:
+
+                # update comment in database
+                msSql_update_query = f"\
+                    UPDATE [MIPS].[dbo].[PIDComments] \
+                    SET CommentsNotes = '{cmnt_notes}' \
+                    WHERE ProductCore = '{product_core}' \
+                    AND PartType = 'T';"
+
+                cursor1 = sqlconn.cursor()
+                cursor1.execute(msSql_update_query)
+                sqlconn.commit()
+                records = cursor1.rowcount
+                print(records, " rows updated")
+                cursor1.close()
+
+        else:
+            print("\nComment notes are same, please proceed...")
+
+    else:
+        print("there are no comments notes in database")
+
+    cursor.close()
+    sqlconn.close()
+
+
 def main():
     loginTrs()
 
@@ -415,6 +492,12 @@ def main():
 
             else:
                 print("fail to get procedure active version...")
+
+            # check for Sp inst and auto update
+            if comment_notes:
+                compare_comment_notes(procId)
+            else:
+                print("no comment notes")
 
         cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
 
