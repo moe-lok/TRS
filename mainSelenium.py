@@ -28,6 +28,8 @@ driver = None
 changes = []
 procID = None
 comment_notes = ''
+fixt_len = 0
+deletes = []
 
 
 # cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
@@ -194,7 +196,11 @@ def compareParam(ppl):
     print("compare parameter...")
 
     global changes
+    global fixt_len
+    global deletes
     changes = []
+    fixt_len = 0
+    deletes = []
 
     try:
         # compare TRS number $TRS
@@ -235,25 +241,74 @@ def compareParam(ppl):
     $TSCLS1H1E5 HNDLRITF: LTC-00282
     $TSCLS1H1E6 CONVKIT: PGK-0052
     """
+    # if contain Performance board = PERFBRD
+    # Contactor = CNTCR
+    # Verifier/SUV Code = CORDEV
+    # Handler Interface = HNDLRITF
+    # Manual Actuator = C/ACTR
+    # Handler Kit = CONVKIT
+    # last should always have SOAK TIME: 240 SECS
+
+    TRS_fixt = [[], []]
 
     for idx, fix in enumerate(fixts[0]):
+        if "PERFORMANCE" in fix.upper():
+            TRS_fixt[0].append("PERFBRD")
+        if "CONTACTOR" in fix.upper():
+            TRS_fixt[0].append("CNTCR")
+        if "VERIFIER" in fix.upper():
+            TRS_fixt[0].append("CORDEV")
+        if "INTERFACE" in fix.upper():
+            TRS_fixt[0].append("HNDLRITF")
+        if "ACTUATOR" in fix.upper():
+            TRS_fixt[0].append("C/ACTR")
+        if "KIT" in fix.upper():
+            TRS_fixt[0].append("CONVKIT")
 
+        TRS_fixt[1].append(fixts[1][idx])
+
+    for idx, trs_hard in enumerate(TRS_fixt[0]):
+
+        fullVal = ""
         try:
             fullVal = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))]
             val = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[1].strip()
-            paramKey = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split()[0]
+            paramKey = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[0]
+            trs_spec = TRS_fixt[1][idx]
 
-            if fixts[1][idx].strip() != val:
+            if trs_hard != paramKey or trs_spec != val:
                 print("\nfixture not same $TSCLS1H1E" + str(idx + 1))
-                print("change " + fullVal + " to " + paramKey + " " + fixts[1][idx])
-                changes.append(["$TSCLS1H1E" + str(idx + 1), paramKey + " " + fixts[1][idx]])
+                print("change " + fullVal + " to " + trs_hard + ": " + trs_spec)
+                changes.append(["$TSCLS1H1E" + str(idx + 1), trs_hard + ": " + trs_spec])
 
         except ValueError as e:
-            print("\n$TSCLS1H1E" + str(idx + 1) + " fixture does not exist in Promis :" + fixts[1][idx])
+            print("\n$TSCLS1H1E" + str(idx + 1) + " fixture does not exist in Promis :" + TRS_fixt[1][idx])
             print(str(e))
         except IndexError:
             print("\nfixture not properly formatted $TSCLS1H1E" + str(idx + 1))
             print(fullVal + " format is not proper, code can't process")
+
+    for key in ppl[0]:
+        if '$TSCLS1H1E' in key:
+            fixt_len += 1
+
+    if fixt_len != len(TRS_fixt[0]):
+        del_count = fixt_len - len(TRS_fixt[0])
+
+        for i in range(1, del_count):
+            idx = len(TRS_fixt[0]) + i
+            val = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[1].strip()
+            paramKey = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[0]
+            fullVal = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx))]
+
+            print("\nfixture not same $TSCLS1H1E" + str(idx))
+            print("change " + fullVal + " to " + paramKey + ": " + val)
+            changes.append(["$TSCLS1H1E" + str(idx), paramKey + ": " + val])
+
+        for i in range(1, del_count):
+            del_idx = fixt_len + i - 1
+            print("\ndelete extra param $TSCLS1H1E" + str(del_idx))
+            deletes.append("$TSCLS1H1E" + str(del_idx))
 
     # compare pidref $PIDREF 04-04-5430 REV A
     temp = notes[1].split(" ", 1)[1].split()
@@ -322,74 +377,85 @@ def updatePromisParam(procId):
 
     procIDver = temp[0] + "." + str(int(temp[1]) + 1).zfill(2)
 
-    if changes:
-        print(changes)
-        dialog.type_keys("^z")  # Ctrl+z
-        dialog.type_keys("q ma proc create{ENTER}", with_spaces=True)
-        time.sleep(0.5)
-        dialog.type_keys(procId + "{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("y{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("y{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys(procId + "{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("y{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("param{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("m{ENTER}")
+    print(changes)
+    dialog.type_keys("^z")  # Ctrl+z
+    dialog.type_keys("q ma proc create{ENTER}", with_spaces=True)
+    time.sleep(0.5)
+    dialog.type_keys(procId + "{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("y{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("y{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys(procId + "{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("y{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("param{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("m{ENTER}")
 
-        for change in changes:
-            dialog.type_keys(change[0] + "{ENTER}")
-            time.sleep(0.5)
-            dialog.type_keys("{ENTER}")
-            time.sleep(0.5)
-            dialog.type_keys(change[1] + "{ENTER}", with_spaces=True)
-            time.sleep(0.5)
-
-        dialog.type_keys("END{ENTER}")
+    for change in changes:
+        dialog.type_keys(change[0] + "{ENTER}")
         time.sleep(0.5)
         dialog.type_keys("{ENTER}")
         time.sleep(0.5)
-        dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
+        dialog.type_keys(change[1] + "{ENTER}", with_spaces=True)
         time.sleep(0.5)
 
-        # procedure id version
-        dialog.type_keys(procIDver + "{ENTER}")
+    dialog.type_keys("END{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("{ENTER}")
+    time.sleep(0.5)
+
+    for delete in deletes:
+        dialog.type_keys("param{ENTER}")
+        time.sleep(0.2)
+        dialog.type_keys("d{ENTER}")
+        time.sleep(0.2)
+        dialog.type_keys(delete + "{ENTER}")
         time.sleep(0.5)
-        # trsnumber
-        dialog.type_keys(trsNumber + "{ENTER}")
+        dialog.type_keys("y{ENTER}")
         time.sleep(0.5)
-        # end
         dialog.type_keys("END{ENTER}")
-        time.sleep(0.5)
-        # set nopage
-        dialog.type_keys("set nopage{ENTER}", with_spaces=True)
-        time.sleep(0.5)
-        # q ma proc free
-        dialog.type_keys("q ma proc free{ENTER}", with_spaces=True)
-        time.sleep(0.5)
-        # procedure id version
-        dialog.type_keys(procIDver + "{ENTER}")
-        time.sleep(0.5)
-        # y
-        dialog.type_keys("y{ENTER}")
-        time.sleep(0.5)
-        # y
-        dialog.type_keys("y{ENTER}")
-        time.sleep(0.5)
-        # make
-        dialog.type_keys("make{ENTER}")
-        time.sleep(0.5)
-        # procedure id version
-        dialog.type_keys(procIDver + "{ENTER}")
-        time.sleep(0.5)
-        dialog.type_keys("set page{ENTER}", with_spaces=True)
+        time.sleep(0.2)
+        dialog.type_keys("{ENTER}")
+        time.sleep(0.2)
 
-    else:
-        print("there are no changes to make...")
+    dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
+    time.sleep(0.5)
+
+    # procedure id version
+    dialog.type_keys(procIDver + "{ENTER}")
+    time.sleep(0.5)
+    # trsnumber
+    dialog.type_keys(trsNumber + "{ENTER}")
+    time.sleep(0.5)
+    # end
+    dialog.type_keys("END{ENTER}")
+    time.sleep(0.5)
+    # set nopage
+    dialog.type_keys("set nopage{ENTER}", with_spaces=True)
+    time.sleep(0.5)
+    # q ma proc free
+    dialog.type_keys("q ma proc free{ENTER}", with_spaces=True)
+    time.sleep(0.5)
+    # procedure id version
+    dialog.type_keys(procIDver + "{ENTER}")
+    time.sleep(0.5)
+    # y
+    dialog.type_keys("y{ENTER}")
+    time.sleep(0.5)
+    # y
+    dialog.type_keys("y{ENTER}")
+    time.sleep(0.5)
+    # make
+    dialog.type_keys("make{ENTER}")
+    time.sleep(0.5)
+    # procedure id version
+    dialog.type_keys(procIDver + "{ENTER}")
+    time.sleep(0.5)
+    dialog.type_keys("set page{ENTER}", with_spaces=True)
 
 
 def compare_comment_notes(procId):
@@ -417,7 +483,7 @@ def compare_comment_notes(procId):
 
     if row:
 
-        cmnt_notes = comment_notes.replace('<br>','\n')
+        cmnt_notes = comment_notes.replace('<br>', '\n')
 
         com_note1 = row.CommentsNotes.splitlines()
         com_note2 = cmnt_notes.splitlines()
@@ -437,7 +503,6 @@ def compare_comment_notes(procId):
             print("\nComment notes are not the same...")
 
             if True if input("\nAuto update comment? [Y/N]...")[0].upper() == "Y" else False:
-
                 # update comment in database
                 msSql_update_query = f"\
                     UPDATE [MIPS].[dbo].[PIDComments] \
@@ -472,44 +537,54 @@ def main():
         inp = input("pls enter spec number: ")
         docNumber = str(inp[3:])
 
-        extractXML(docNumber)
-        print("trs number: " + trsNumber)
-        print("procedure Id: ")
-        print(procIds)
-        print("progId: " + progId)
-        print("projFol: " + projFol)
-        print("fixtures: ")
+        if extractXML(docNumber):
+            print("trs number: " + trsNumber)
+            print("procedure Id: ")
+            print(procIds)
+            print("progId: " + progId)
+            print("projFol: " + projFol)
+            print("fixtures: ")
 
-        for idx, fix in enumerate(fixts[0]):
-            print(fixts[0][idx] + " | " + fixts[1][idx])
+            for idx, fix in enumerate(fixts[0]):
+                print(fixts[0][idx] + " | " + fixts[1][idx])
 
-        print("notes: ")
+            print("notes: ")
 
-        for note in notes:
-            print(note)
+            for note in notes:
+                print(note)
 
-        for procId in procIds:
-            print("\n############# " + procId + "-T0")
+            for procId in procIds:
+                print("\n############# " + procId + "-T0")
 
-            procActVer = getProcActiveVer(procId + "-T0")
+                procActVer = getProcActiveVer(procId + "-T0")
 
-            if procActVer:
+                if procActVer:
 
-                promisParamList = queryPromisParam(procActVer)
-                compareParam(promisParamList)
+                    promisParamList = queryPromisParam(procActVer)
+                    compareParam(promisParamList)
 
-                # update promis parameter
-                if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
-                    updatePromisParam(procId + "-T0")
+                    # update promis parameter
+                    if changes or deletes:
+                        print("\nparam to update...")
+                        print(changes)
 
-            else:
-                print("fail to get procedure active version...")
+                        if deletes:
+                            print("\nparam to delete...")
+                            print(deletes)
 
-            # check for Sp inst and auto update
-            if comment_notes:
-                compare_comment_notes(procId)
-            else:
-                print("no comment notes")
+                        if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
+                            updatePromisParam(procId + "-T0")
+                    else:
+                        print("there are no changes to make...")
+
+                else:
+                    print("fail to get procedure active version...")
+
+                # check for Sp inst and auto update
+                if comment_notes:
+                    compare_comment_notes(procId)
+                else:
+                    print("no comment notes")
 
         cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
 
