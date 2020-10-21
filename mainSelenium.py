@@ -7,6 +7,7 @@ import pyodbc
 import difflib
 
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
@@ -67,6 +68,7 @@ def extractXML(docNumber):
     fixts = [[], []]
     notes = []
     comment_notes = ''
+    element_found = True
 
     print("enter trsnumber...")
     select = Select(driver.find_element_by_name('FieldName'))
@@ -80,7 +82,14 @@ def extractXML(docNumber):
     trsnumberInp.send_keys(Keys.RETURN)
 
     print("click trsnumber...")
-    trsLink = driver.find_element_by_xpath("/html/body/div[2]/form/table/tbody/tr/td/table/tbody/tr[4]/td[1]/a")
+
+    try:
+        trsLink = driver.find_element_by_xpath("/html/body/div[2]/form/table/tbody/tr/td/table/tbody/tr[4]/td[1]/a")
+    except NoSuchElementException:
+        print("### TRS does not exist")
+        element_found = False
+        return element_found
+
     # get trs number with revision
     trsNumber = trsLink.text
     trsLink.click()
@@ -113,6 +122,9 @@ def extractXML(docNumber):
 
     driver.execute_script("window.history.go(-1)")
     driver.execute_script("window.history.go(-1)")
+
+    element_found = True
+    return element_found
 
 
 def queryPromisParam(procId):
