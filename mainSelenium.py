@@ -165,19 +165,12 @@ def getProcActiveVer(procId):
     c.execute("""
         SELECT
             plldba.prcd.prcdname,
-            plldba.prcd.prcdversion,
-            plldba.prcd.activekey,
-            plldba.prcd.ecn,
-            plldba.prcd.prodstatus,
-            plldba.prcd.engowner,
-            to_char(plldba.prcd.createdate, 'DD-MON-YYYY HH24:Mi:SS') AS createddate,
-            to_char(plldba.prcd.activedate, 'DD-MON-YYYY HH24:Mi:SS') AS activedate
+            MAX(plldba.prcd.prcdversion)
         FROM
             plldba.prcd
         WHERE
             plldba.prcd.prcdname = '""" + procId + """'
-            and
-            plldba.prcd.activekey like 'ALTM%'""")  # use triple quotes if you want to spread your query across multiple lines
+            GROUP BY plldba.prcd.prcdname""")  # use triple quotes if you want to spread your query across multiple lines
 
     tmpLst = list(c)
 
@@ -367,8 +360,9 @@ def compareParam(ppl):
 def updatePromisParam(procId):
     print("update promis param...")
     print(procId)
-    p2title = "adp2prom1.ad.analog.com - PuTTY"
+    p2title = "ADP2PROM1.AD.ANALOG.COM - PuTTY"
     # ADP2PROM1.AD.ANALOG.COM
+    # adp2prom1.ad.analog.com
 
     app = Application(backend="uia").connect(title=p2title)
     dialog = app.window()
