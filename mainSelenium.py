@@ -452,6 +452,45 @@ def updatePromisParam(procId):
     dialog.type_keys("set page{ENTER}", with_spaces=True)
 
 
+def insert_into_PIDComments(product_core, cmnt_notes, slflow):
+
+    # get pidref
+    notes1 = notes[1].replace("|", "")
+    temp = notes1.split(" ", 1)[1].split()
+    pidref = " ".join(temp)
+
+    sqlconn = pyodbc.connect('Driver={SQL Server};'
+                             'Server=adpgsql1\\adpgsql;'
+                             'Database=MIPS;'
+                             'UID=webUser;'
+                             'PWD=Adipg!234567890;')
+
+    msSql_insert_query = f"\
+                                INSERT INTO [dbo].[PIDComments]\
+                                           ([ProductCore]\
+                                           ,[PidReference]\
+                                           ,[CommentsNotes]\
+                                           ,[PartType]\
+                                           ,[SLFLOW]\
+                                           ,[ECN]\
+                                           ,[CreatedDate])\
+                                     VALUES\
+                                           ('{product_core}'\
+                                           ,'{pidref}'\
+                                           ,'{cmnt_notes}'\
+                                           ,'T'\
+                                           ,'{slflow}'\
+                                           ,'{trsNumber}'\
+                                           ,GETDATE()\
+                                           );"
+
+    cursor2 = sqlconn.cursor()
+    cursor2.execute(msSql_insert_query)
+    sqlconn.commit()
+    records = cursor2.rowcount
+    print(records, " rows inserted")
+    cursor2.close()
+
 def compare_comment_notes(procId):
     print("\ncomparing comment notes from database...")
 
@@ -474,10 +513,11 @@ def compare_comment_notes(procId):
     cursor.execute(sql_query)
 
     row = cursor.fetchone()
+    cursor.close()
+
+    cmnt_notes = comment_notes.replace('<br>', '\n')
 
     if row:
-
-        cmnt_notes = comment_notes.replace('<br>', '\n')
 
         com_note1 = row.CommentsNotes.splitlines()
         com_note2 = cmnt_notes.splitlines()
@@ -516,8 +556,11 @@ def compare_comment_notes(procId):
 
     else:
         print("there are no comments notes in database")
+        # insert new PIDComments
+        print("product core: " + product_core + "\nslflow: " + slflow)
+        if True if input("\nAuto insert? [Y/N]...")[0].upper() == "Y" else False:
+            insert_into_PIDComments(product_core, cmnt_notes, slflow)
 
-    cursor.close()
     sqlconn.close()
 
 
