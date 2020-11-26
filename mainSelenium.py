@@ -367,11 +367,16 @@ def compareParam(ppl):
 def updatePromisParam(procId):
     print("update promis param...")
     print(procId)
-    p2title = "ADP2PROM1.AD.ANALOG.COM - PuTTY"
+    p2title1 = "adp2prom1.ad.analog.com - PuTTY"
+    p2title2 = "ADP2PROM1.AD.ANALOG.COM - PuTTY"
     # ADP2PROM1.AD.ANALOG.COM
     # adp2prom1.ad.analog.com
 
-    app = Application(backend="uia").connect(title=p2title)
+    try:
+        app = Application(backend="uia").connect(title=p2title1)
+    except ElementNotFoundError:
+        app = Application(backend="uia").connect(title=p2title2)
+
     dialog = app.window()
 
     temp = procID.split(".")
