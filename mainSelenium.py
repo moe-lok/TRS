@@ -306,13 +306,16 @@ def compareParam(ppl):
             deletes.append("$TSCLS1H1E" + str(del_idx))
 
     # compare pidref $PIDREF 04-04-5430 REV A
-    temp = notes[1].split(" ", 1)[1].split()
-    del temp[-1]
+    # notes[1] is like PIDREF: 04-04-9670 REV A|
+
+    notes1 = notes[1].replace("|", "")
+    temp = notes1.split(" ", 1)[1].split()
     pidref = " ".join(temp)
 
     try:
         if pidref.upper() != ppl[1][ppl[0].index('$PIDREF')]:
-            print("\nPIDREF not same $PIDREF")
+            print("\nPIDREF from TRS is " + notes[1])
+            print("PIDREF not same $PIDREF")
             print("change " + ppl[1][ppl[0].index('$PIDREF')] + " to " + pidref)
             changes.append(["$PIDREF", pidref])
 
@@ -333,12 +336,14 @@ def compareParam(ppl):
     """
 
     for idx, rawnote in enumerate(newNotes):
-        temp1 = rawnote.split(" ", 1)[1].split()
-        del temp1[-1]
+
+        rawnote1 = rawnote.replace("|", "")
+        temp1 = rawnote1.split(" ", 1)[1].split()
         note = " ".join(temp1)
 
         try:
             if note.upper() != ppl[1][ppl[0].index('$MCREF' + str(idx + 1))]:
+                print("MCREF" + str(idx + 1) + " from TRS is " + rawnote)
                 print("\nnote not same $MCREF" + str(idx + 1))
                 print("change " + ppl[1][ppl[0].index('$MCREF' + str(idx + 1))] + " to " + note)
                 changes.append(['$MCREF' + str(idx + 1), note])
