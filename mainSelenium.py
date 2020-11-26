@@ -5,7 +5,9 @@ import cx_Oracle
 import time
 import pyodbc
 import difflib
+import re
 
+from pywinauto.findwindows import ElementNotFoundError
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
@@ -496,6 +498,14 @@ def compare_comment_notes(procId):
 
     product_core = procId.split("#")[0]
 
+    try:
+        slflow = re.search('#(.*)PBF', procId).group(1)
+    except AttributeError:
+        print("procedure id is not in #PBF format: " + procId + "\nskipping this procedure...")
+        return
+
+    slflow = slflow if slflow else "NA"
+
     sqlconn = pyodbc.connect('Driver={SQL Server};'
                              'Server=adpgsql1\\adpgsql;'
                              'Database=MIPS;'
@@ -507,7 +517,8 @@ def compare_comment_notes(procId):
                 f"[CommentsNotes]" \
                 f"FROM [MIPS].[dbo].[PIDComments]" \
                 f"WHERE ProductCore = '{product_core}'" \
-                f"AND PartType = 'T'"
+                f"AND PartType = 'T'" \
+                f"AND SLFLOW = '{slflow}';"
 
     cursor = sqlconn.cursor()
     cursor.execute(sql_query)
@@ -542,7 +553,8 @@ def compare_comment_notes(procId):
                     UPDATE [MIPS].[dbo].[PIDComments] \
                     SET CommentsNotes = '{cmnt_notes}' \
                     WHERE ProductCore = '{product_core}' \
-                    AND PartType = 'T';"
+                    AND PartType = 'T' \
+                    AND SLFLOW = '{slflow}';"
 
                 cursor1 = sqlconn.cursor()
                 cursor1.execute(msSql_update_query)
