@@ -464,7 +464,7 @@ def updatePromisParam(procId):
     dialog.type_keys("set page{ENTER}", with_spaces=True)
 
 
-def insert_into_PIDComments(product_core, cmnt_notes, slflow):
+def insert_into_PIDComments(product_core, cmnt_notes, part_type, slflow):
 
     # get pidref
     notes1 = notes[1].replace("|", "")
@@ -490,7 +490,7 @@ def insert_into_PIDComments(product_core, cmnt_notes, slflow):
                                            ('{product_core}'\
                                            ,'{pidref}'\
                                            ,'{cmnt_notes}'\
-                                           ,'T'\
+                                           ,'{part_type}'\
                                            ,'{slflow}'\
                                            ,'{trsNumber}'\
                                            ,GETDATE()\
@@ -503,10 +503,21 @@ def insert_into_PIDComments(product_core, cmnt_notes, slflow):
     print(records, " rows inserted")
     cursor2.close()
 
+
 def compare_comment_notes(procId):
     print("\ncomparing comment notes from database...")
 
+    procActive = getProcActiveVer(procId)
+    ppl = queryPromisParam(procActive)
+
     product_core = procId.split("#")[0]
+    part_type = 'T'
+
+    try:
+        part_type = ppl[1][ppl[0].index('$PARTTYPE')]
+    except ValueError as e:
+        print("$PARTTYPE does not exist in in Promis")
+
 
     try:
         slflow = re.search('#(.*)PBF', procId).group(1)
@@ -527,7 +538,7 @@ def compare_comment_notes(procId):
                 f"[CommentsNotes]" \
                 f"FROM [MIPS].[dbo].[PIDComments]" \
                 f"WHERE ProductCore = '{product_core}'" \
-                f"AND PartType = 'T'" \
+                f"AND PartType = '{part_type}'" \
                 f"AND SLFLOW = '{slflow}';"
 
     cursor = sqlconn.cursor()
@@ -555,8 +566,8 @@ def compare_comment_notes(procId):
                 break
 
         if not both_are_same:
-            print("\nComment notes are not the same...")
-            print("product core: " + product_core + " SLFLOW: " + slflow)
+            print("\nComment notes are not the same...\n")
+            print("product core: " + product_core + "\nPartType:" + part_type + "\nslflow: " + slflow)
 
             if True if input("\nAuto update comment? [Y/N]...")[0].upper() == "Y" else False:
                 # update comment in database
@@ -564,7 +575,7 @@ def compare_comment_notes(procId):
                     UPDATE [MIPS].[dbo].[PIDComments] \
                     SET CommentsNotes = '{cmnt_notes}' \
                     WHERE ProductCore = '{product_core}' \
-                    AND PartType = 'T' \
+                    AND PartType = '{part_type}' \
                     AND SLFLOW = '{slflow}';"
 
                 cursor1 = sqlconn.cursor()
@@ -578,11 +589,11 @@ def compare_comment_notes(procId):
             print("\nComment notes are same, please proceed...")
 
     else:
-        print("there are no comments notes in database")
+        print("\nthere are no comments notes in database\n")
         # insert new PIDComments
-        print("product core: " + product_core + "\nslflow: " + slflow)
+        print("product core: " + product_core + "\nPartType:" + part_type + "\nslflow: " + slflow)
         if True if input("\nAuto insert? [Y/N]...")[0].upper() == "Y" else False:
-            insert_into_PIDComments(product_core, cmnt_notes, slflow)
+            insert_into_PIDComments(product_core, cmnt_notes, part_type, slflow)
 
     sqlconn.close()
 
