@@ -122,12 +122,17 @@ def extractXML(docNumber):
     str2 = root.find('./body/testflows/configurations/configuration/notes').text
     notes = str2.splitlines()
 
-    comment_notes = root.find('./body/notesandattachments/notes').text
-
-    driver.execute_script("window.history.go(-1)")
-    driver.execute_script("window.history.go(-1)")
-
     element_found = True
+
+    try:
+        comment_notes = root.find('./body/notesandattachments/notes').text
+    except AttributeError:
+        print("\nTRS XML Version is broken\n")
+        element_found = False
+
+    driver.execute_script("window.history.go(-1)")
+    driver.execute_script("window.history.go(-1)")
+
     return element_found
 
 
