@@ -556,6 +556,7 @@ def compare_comment_notes(procId):
 
         if not both_are_same:
             print("\nComment notes are not the same...")
+            print("product core: " + product_core + " SLFLOW: " + slflow)
 
             if True if input("\nAuto update comment? [Y/N]...")[0].upper() == "Y" else False:
                 # update comment in database
