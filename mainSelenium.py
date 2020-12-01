@@ -187,7 +187,7 @@ def getProcActiveVer(procId):
         return procIDver
 
     except IndexError:
-        print("partname does not exist...")
+        print("procedure does not exist...")
         conn.close()
         return None
 
@@ -369,6 +369,141 @@ def compareParam(ppl):
         print(str(e))
 
 
+def updatePromisProductCore(procId):
+    print("update promis product core...")
+    print(procId)
+    p2title1 = "adp2prom1.ad.analog.com - PuTTY"
+    p2title2 = "ADP2PROM1.AD.ANALOG.COM - PuTTY"
+    # ADP2PROM1.AD.ANALOG.COM
+    # adp2prom1.ad.analog.com
+
+    procActive = getProcActiveVer(procId)
+    ppl = queryPromisParam(procActive)
+
+    print("procActive: " + procActive)
+
+    productCore = re.split('#', procId)[0]
+
+    print("productCore: " + productCore)
+
+    PECNNumber = "PPN0054858"
+
+    updates = []
+
+    try:
+        # compare ProductCore number $$PRODUCTCORE
+        if productCore != ppl[1][ppl[0].index('$PRODUCTCORE')]:
+            print("\nProdcutCore not same $PRODUCTCORE")
+            print("change " + ppl[1][ppl[0].index('$PRODUCTCORE')] + " to " + productCore)
+            updates.append(['$PRODUCTCORE', productCore])
+    except ValueError as e:
+        print("\n$PRODUCTCORE does not exist in Promis :" + productCore)
+        print(str(e))
+
+    try:
+        # compare ECN number $ECN
+        if PECNNumber != ppl[1][ppl[0].index('$ECN')]:
+            print("\nECN not same $ECN")
+            print("change " + ppl[1][ppl[0].index('$ECN')] + " to " + PECNNumber)
+            updates.append(['$ECN', PECNNumber])
+    except ValueError as e:
+        print("\n$ECN does not exist in Promis :" + PECNNumber)
+        print(str(e))
+
+    try:
+        # compare owner
+        if "P2LOKMAN" != ppl[1][ppl[0].index('$OWNER')]:
+            print("\nowner not P2LOKMAN $OWNER")
+            print("change " + ppl[1][ppl[0].index('$OWNER')] + " to " + "P2LOKMAN")
+            updates.append(['$OWNER', 'P2LOKMAN'])
+
+    except ValueError as e:
+        print("\n$OWNER does not exist in Promis")
+        print(str(e))
+
+    print("updates")
+    print(updates)
+
+    if updates and True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
+
+        try:
+            app = Application(backend="uia").connect(title=p2title1)
+        except ElementNotFoundError:
+            app = Application(backend="uia").connect(title=p2title2)
+
+        dialog = app.window()
+
+        temp = procActive.split(".")
+
+        procIDver = temp[0] + "." + str(int(temp[1]) + 1).zfill(2)
+
+        dialog.type_keys("^z")  # Ctrl+z
+        dialog.type_keys("q ma proc create{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        dialog.type_keys(procId + "{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys(procId + "{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("param{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("m{ENTER}")
+
+        for update in updates:
+            dialog.type_keys(update[0] + "{ENTER}")
+            time.sleep(0.5)
+            dialog.type_keys("{ENTER}")
+            time.sleep(0.5)
+            dialog.type_keys(update[1] + "{ENTER}", with_spaces=True)
+            time.sleep(0.5)
+
+        dialog.type_keys("END{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("{ENTER}")
+        time.sleep(0.5)
+
+        dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
+        time.sleep(0.5)
+        # trsnumber
+        dialog.type_keys(PECNNumber + "{ENTER}")
+        time.sleep(0.5)
+        # end
+        dialog.type_keys("END{ENTER}")
+        time.sleep(0.5)
+
+        # set nopage
+        dialog.type_keys("set nopage{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        # q ma proc free
+        dialog.type_keys("q ma proc free{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
+        time.sleep(0.5)
+        # y
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        # y
+        dialog.type_keys("y{ENTER}")
+        time.sleep(0.5)
+        # make
+        dialog.type_keys("make{ENTER}")
+        time.sleep(0.5)
+        # procedure id version
+        dialog.type_keys(procIDver + "{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("set page{ENTER}", with_spaces=True)
+
+
 def updatePromisParam(procId):
     print("update promis param...")
     print(procId)
@@ -523,7 +658,6 @@ def compare_comment_notes(procId):
     except ValueError as e:
         print("$PARTTYPE does not exist in in Promis")
 
-
     try:
         slflow = re.search('#(.*)PBF', procId).group(1)
     except AttributeError:
@@ -663,6 +797,22 @@ def main():
                     print("no comment notes")
 
         cont = True if input("\nContinue? [Y/N]...")[0].upper() == "Y" else False
+
+
+def updateProcedureProductCore():
+    partNames = []
+
+    print("paste partName here, ENTER if done: ")
+
+    while True:  # taking multiple line input for Lot Id
+        line = input()
+        if line:
+            partNames.append(line)
+        else:
+            break
+
+    for partName in partNames:
+        updatePromisProductCore(partName)
 
 
 if __name__ == "__main__":
