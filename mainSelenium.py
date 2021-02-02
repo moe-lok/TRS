@@ -32,6 +32,8 @@ procID = None
 comment_notes = ''
 fixt_len = 0
 deletes = []
+adds = []
+corrs = []
 
 
 # cx_Oracle.init_oracle_client(lib_dir=r"\instantclient-basiclite-windows.x64-19.6.0.0.0dbru\instantclient_19_6")
@@ -52,7 +54,7 @@ def loginTrs():
 
     passInp = driver.find_element_by_name("password")
     passInp.clear()
-    passInp.send_keys("413C@Batuuban")
+    passInp.send_keys("413C@Batuuban1")
     passInp.send_keys(Keys.RETURN)
 
 
@@ -64,6 +66,7 @@ def extractXML(docNumber):
     global notes
     global trsNumber
     global comment_notes
+    global corrs
 
     trsNumber = ''
     procIds = []
@@ -71,6 +74,7 @@ def extractXML(docNumber):
     projFol = ''
     fixts = [[], []]
     notes = []
+    corrs = []
     comment_notes = ''
     element_found = True
 
@@ -121,6 +125,28 @@ def extractXML(docNumber):
 
     str2 = root.find('./body/testflows/configurations/configuration/notes').text
     notes = str2.splitlines()
+    notes = list(filter(None, notes))  # remove empty string from list
+
+    for child in root.findall('./body/testrequirements/specialbinningbinning/specialbinning/specialinstructions'):
+        spIns = child.text
+        try:
+            if "SL:" in spIns:
+                SLstr = re.search('SL:(.*?)\|', spIns).group(1).strip()
+                corrs.append(["$SL", SLstr])
+            if "CRC:" in spIns:
+                CRCstr = re.search('CRC:(.*?)\|', spIns).group(1).strip()
+                corrs.append(["$CRC", CRCstr])
+            if "SLCORR:" in spIns:
+                SLCORRstr = re.search('SLCORR:(.*?)\|', spIns).group(1).strip()
+                corrs.append(["$SLCORR", SLCORRstr])
+            if "CRCCORR:" in spIns:
+                CRCCORRstr = re.search('CRCCORR:(.*?)\|', spIns).group(1).strip()
+                corrs.append(["$CRCCORR", CRCCORRstr])
+            if "GENERICCORR:" in spIns:
+                GENERICCORRstr = re.search('GENERICCORR:(.*)', spIns).group(1).strip()
+                corrs.append(["$GENERICCORR", GENERICCORRstr])
+        except AttributeError:
+            pass
 
     element_found = True
 
@@ -198,9 +224,11 @@ def compareParam(ppl):
     global changes
     global fixt_len
     global deletes
+    global adds
     changes = []
     fixt_len = 0
     deletes = []
+    adds = []
 
     try:
         # compare TRS number $TRS
@@ -274,7 +302,7 @@ def compareParam(ppl):
             fullVal = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))]
             val = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[1].strip()
             paramKey = ppl[1][ppl[0].index('$TSCLS1H1E' + str(idx + 1))].split(':')[0]
-            trs_spec = TRS_fixt[1][idx]
+            trs_spec = TRS_fixt[1][idx].strip()
 
             if trs_hard != paramKey or trs_spec != val:
                 print("\nfixture not same $TSCLS1H1E" + str(idx + 1))
@@ -309,6 +337,10 @@ def compareParam(ppl):
             del_idx = fixt_len + i - 1
             print("\ndelete extra param $TSCLS1H1E" + str(del_idx))
             deletes.append("$TSCLS1H1E" + str(del_idx))
+
+        # TODO: this is temporary, to delete later
+        # deletes.extend(
+        #     ["$TEMP_QC4", "$TQCLS4O1", "$TQCLS4P1", "$TQCLS4P1RS", "$TQCLS4T", "$TQCLS4TC1", "$TQCLS4_ACBIN"])
 
     # compare pidref $PIDREF 04-04-5430 REV A
     # notes[1] is like PIDREF: 04-04-9670 REV A|
@@ -348,14 +380,29 @@ def compareParam(ppl):
 
         try:
             if note.upper() != ppl[1][ppl[0].index('$MCREF' + str(idx + 1))]:
-                print("MCREF" + str(idx + 1) + " from TRS is " + rawnote)
-                print("\nnote not same $MCREF" + str(idx + 1))
+                print("\nMCREF" + str(idx + 1) + " from TRS is " + rawnote)
+                print("note not same $MCREF" + str(idx + 1))
                 print("change " + ppl[1][ppl[0].index('$MCREF' + str(idx + 1))] + " to " + note)
                 changes.append(['$MCREF' + str(idx + 1), note])
 
         except ValueError as e:
             print("\n$MCREF" + str(idx + 1) + " does not exist in Promis :" + note)
+            adds.append(["$MCREF" + str(idx + 1), note])
             print(str(e))
+
+    for corr in corrs:
+        param = corr[0]
+        val = corr[1]
+
+        try:
+            if val != ppl[1][ppl[0].index(param)]:
+                print(f"\n{param} from TRS is {val}")
+                print("change " + ppl[1][ppl[0].index(param)] + " to " + val)
+                changes.append(corr)
+
+        except ValueError as e:
+            print(f"{param} does not exist in Promis :{val}")
+            adds.append(corr)
 
     try:
         # compare owner
@@ -367,6 +414,9 @@ def compareParam(ppl):
     except ValueError as e:
         print("\n$OWNER does not exist in Promis")
         print(str(e))
+
+    # TODO: below code is temporary remove once done
+    # changes.extend([['$TEMP_QC3', 'SAMPLING'], ['$TQCLS3T', '125'], ['$TQCLS3TC1', 'QA HOT1']])
 
 
 def updatePromisProductCore(procId):
@@ -568,6 +618,22 @@ def updatePromisParam(procId):
         dialog.type_keys("{ENTER}")
         time.sleep(0.2)
 
+    for add in adds:
+        dialog.type_keys("param{ENTER}")
+        time.sleep(0.2)
+        dialog.type_keys("a{ENTER}")
+        time.sleep(0.2)
+        dialog.type_keys(add[0] + "{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys("STRING{ENTER}")
+        time.sleep(0.5)
+        dialog.type_keys(add[1] + "{ENTER}", with_spaces=True)
+        time.sleep(0.5)
+        dialog.type_keys("END{ENTER}")
+        time.sleep(0.2)
+        dialog.type_keys("{ENTER}")
+        time.sleep(0.2)
+
     dialog.type_keys("q ma eng ass proc{ENTER}", with_spaces=True)
     time.sleep(0.5)
 
@@ -605,7 +671,6 @@ def updatePromisParam(procId):
 
 
 def insert_into_PIDComments(product_core, cmnt_notes, part_type, slflow):
-
     # get pidref
     notes1 = notes[1].replace("|", "")
     temp = notes1.split(" ", 1)[1].split()
@@ -774,7 +839,7 @@ def main():
                     compareParam(promisParamList)
 
                     # update promis parameter
-                    if changes or deletes:
+                    if changes or deletes or adds:
                         print("\nparam to update...")
                         print(changes)
 
@@ -782,7 +847,13 @@ def main():
                             print("\nparam to delete...")
                             print(deletes)
 
-                        if True if input("\nAuto update? [Y/N]...")[0].upper() == "Y" else False:
+                        if adds:
+                            print("\nparam to add...")
+                            print(adds)
+
+                        while (res := input("\nAuto update? [Y/N]...").lower()) not in {"y", "n"}: pass
+
+                        if res == 'y':
                             updatePromisParam(procId + "-T0")
                     else:
                         print("there are no changes to make...")
@@ -793,6 +864,7 @@ def main():
                 # check for Sp inst and auto update
                 if comment_notes:
                     compare_comment_notes(procId)
+                    compare_comment_notes(procId + "-T0")
                 else:
                     print("no comment notes")
 
